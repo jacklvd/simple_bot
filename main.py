@@ -7,8 +7,6 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SESSION_FILE_DIR"] = os.path.join(app.root_path, "conversations")
 Session(app)
-# Ensure the 'conversations' directory exists
-os.makedirs(app.config["SESSION_FILE_DIR"], exist_ok=True)
 
 
 @app.route("/")
@@ -125,4 +123,6 @@ def ask():
 
 
 if __name__ == "__main__":
-    app.run()
+    # Ensure the 'conversations' directory exists
+    os.makedirs(app.config["SESSION_FILE_DIR"], exist_ok=True)
+    app.run(debug=True)
