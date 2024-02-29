@@ -16,6 +16,8 @@ body {
     border: 1px solid #ccc;
     background-color: #fff;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
 }
 
 #chatArea {
@@ -25,11 +27,16 @@ body {
     border-bottom: 1px solid #ccc;
 }
 
+/* New container for input and button */
+#inputContainer {
+    display: flex; /* Use flexbox to align items in a row */
+    border-top: 1px solid #ccc;
+}
+
 #userQuestion {
-    width: calc(100% - 90px);
+    flex-grow: 1; /* userQuestion will fill the available space */
     padding: 10px;
     border: none;
-    border-top: 1px solid #ccc;
 }
 
 #askButton {
