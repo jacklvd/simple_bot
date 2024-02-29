@@ -80,12 +80,14 @@ def ask():
         user_info = f"User Info: {state.get('first_name', '')} {state.get('last_name', '')} & {state.get('email', '')}"
         creator_info = "Chatbox Creator: Jack Vo & volg@mail.uc.edu"
         final_message = f"{user_info}. {creator_info}"
-        state["step"] = "prompt_clear_ui"
-        save_chat_state(user_id, state)
-        clear_chat_prompt = "Would you like to clear the chat history? (yes/no)"
-        return jsonify(
-            {"answer": final_message, "prompt_clear_chat": clear_chat_prompt}
-        )
+        # state["step"] = "prompt_clear_ui"
+        # save_chat_state(user_id, state)
+        # clear_chat_prompt = "Would you like to clear the chat history? (yes/no)"
+        # return jsonify(
+        #     {"answer": final_message, "prompt_clear_chat": clear_chat_prompt}
+        # )
+        clear_chat_state(user_id)  # Clear the user's chat state
+        return jsonify({"answer": final_message})
 
     if state["step"] == "prompt_clear_ui":
         if "yes" in question:
