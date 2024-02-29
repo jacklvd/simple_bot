@@ -44,7 +44,7 @@ def ask():
         )
 
     if session["step"] == "ask_last_name":
-        session["last_name"] = question
+        session["last_name"] = question.capitalize()
         session["step"] = "ask_email"
         return jsonify({"answer": "Thanks! Now, what's your email address?"})
 
@@ -94,13 +94,18 @@ def ask():
             or "computer science" in question
         ):
             answer = "Yes, we offer a Computer Science major. CS is a popular major at our college."
-        elif "in-state tuition" in question or "tuition for in-state" in question:
+        elif (
+            "in-state tuition" in question
+            or "tuition for in-state" in question
+            or "tuition" in question
+        ):
             answer = "The in-state tuition is $10,000 per year. We also offer financial aid and scholarships!"
         elif (
             "on campus housing" in question
             or "dorms" in question
             or "housing options" in question
             or "campus housing" in question
+            or "housing" in question
         ):
             answer = "Yes, we have on-campus housing options. We have 3 dorms: A, B, and C. Each dorm has a different style and price."
         else:
