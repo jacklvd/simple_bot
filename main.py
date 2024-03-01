@@ -15,6 +15,7 @@ def index():
     user_id = request.cookies.get("user_id")
     if not user_id:
         user_id = str(len(chat_states) + 1)
+        chat_states[user_id] = {"step": "welcome"}
         response = make_response(render_template("index.html"))
         response.set_cookie("user_id", user_id)
         return response
@@ -36,20 +37,22 @@ def clear_chat_state(user_id):
 @app.route("/ask", methods=["POST"])
 def ask():
     user_id = request.cookies.get("user_id")
-    if not user_id:
+    if not user_id or user_id not in chat_states:
         return jsonify(
             {"answer": "There was an error with your session. Please refresh the page."}
         )
 
-    state = get_chat_state(user_id)
+    state = chat_states.get(user_id, {"step": "welcome"})
     question = request.form["question"].strip().lower()
 
-    if any(word in question for word in ["start", "begin", "hello", "hi"]):
+    if state["step"] == "welcome" or any(
+        word in question for word in ["start", "begin", "hello", "hi"]
+    ):
         state["step"] = "ask_first_name"
         save_chat_state(user_id, state)
         return jsonify({"answer": "Hi! What's your first name?"})
 
-    if state["step"] == "ask_first_name":
+    elif state["step"] == "ask_first_name":
         state["first_name"] = question.capitalize()
         state["step"] = "ask_last_name"
         save_chat_state(user_id, state)
@@ -57,13 +60,13 @@ def ask():
             {"answer": f"Great {state['first_name']}! What's your last name?"}
         )
 
-    if state["step"] == "ask_last_name":
+    elif state["step"] == "ask_last_name":
         state["last_name"] = question.capitalize()
         state["step"] = "ask_email"
         save_chat_state(user_id, state)
         return jsonify({"answer": "Thanks! Now, what's your email address?"})
 
-    if state["step"] == "ask_email":
+    elif state["step"] == "ask_email":
         state["email"] = question
         state["step"] = "answer_questions"
         save_chat_state(user_id, state)
@@ -71,7 +74,7 @@ def ask():
             {"answer": "Thank you! You can now ask me any questions about the college."}
         )
 
-    if (
+    elif (
         "end" in question
         or "stop" in question
         or "quit" in question
@@ -80,16 +83,16 @@ def ask():
         user_info = f"User Info: {state.get('first_name', '')} {state.get('last_name', '')} & {state.get('email', '')}"
         creator_info = "Chatbox Creator: Jack Vo & volg@mail.uc.edu"
         final_message = f"{user_info}. {creator_info}"
-        # state["step"] = "prompt_clear_ui"
-        # save_chat_state(user_id, state)
-        # clear_chat_prompt = "Would you like to clear the chat history? (yes/no)"
-        # return jsonify(
-        #     {"answer": final_message, "prompt_clear_chat": clear_chat_prompt}
-        # )
-        clear_chat_state(user_id)  # Clear the user's chat state
-        return jsonify({"answer": final_message})
+        state["step"] = "prompt_clear_ui"
+        save_chat_state(user_id, state)
+        clear_chat_prompt = "Would you like to clear the chat history? (yes/no)"
+        return jsonify(
+            {"answer": final_message, "prompt_clear_chat": clear_chat_prompt}
+        )
+        # clear_chat_state(user_id)  # Clear the user's chat state
+        # return jsonify({"answer": final_message})
 
-    if state["step"] == "prompt_clear_ui":
+    elif state["step"] == "prompt_clear_ui":
         if "yes" in question:
             # If user confirms to clear the UI, clear the chat state and set flag
             clear_chat_state(user_id)
@@ -108,7 +111,7 @@ def ask():
                 }
             )
 
-    if state["step"] == "answer_questions":
+    elif state["step"] == "answer_questions":
         if (
             "football team" in question
             or "college football team" in question
@@ -140,18 +143,16 @@ def ask():
             answer = "Yes, we have on-campus housing options. We have 3 dorms: A, B, and C. Each dorm has a different style and price."
         else:
             answer = "I'm sorry, I don't have the information on that. Please contact admissions@uc.edu for more details."
-        # Append user information to the answer
-        # user_info = f" (Asked by {session['first_name']} {session['last_name']}, {session['email']})"
         following_question = (
             "You can ask me more questions or type 'end' to end the conversation."
         )
         return jsonify({"answer": answer + f"\n" + following_question})
-
-    return jsonify(
-        {
-            "answer": "I'm not sure how to answer that. Can you try asking something else?"
-        }
-    )
+    else:
+        return jsonify(
+            {
+                "answer": "I'm not sure how to answer that. Can you try asking something else?"
+            }
+        )
 
 
 if __name__ == "__main__":
