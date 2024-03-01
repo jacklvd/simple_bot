@@ -1,24 +1,30 @@
-from flask import Flask, render_template, request, jsonify, session, make_response
-from flask_session import Session
-import os
+from flask import Flask, render_template, request, jsonify, make_response
+import uuid
+import re
 
 app = Flask(__name__)
 
 
 # In-memory storage for chat states
 chat_states = {}
+EMAIL_REGEX = re.compile(r"[^@]+@[^@]+\.[^@]+")
 
 
 @app.route("/")
 def index():
-    # Generate a new user_id for each session, should ideally be a unique identifier
     user_id = request.cookies.get("user_id")
     if not user_id:
-        user_id = str(len(chat_states) + 1)
-        chat_states[user_id] = {"step": "welcome"}
+        # Generate a unique user_id using uuid
+        user_id = str(uuid.uuid4())
+        chat_states[user_id] = {"step": "welcome"}  # Initialize the chat state
         response = make_response(render_template("index.html"))
-        response.set_cookie("user_id", user_id)
+        response.set_cookie(
+            "user_id", user_id, max_age=60 * 60 * 24
+        )  # Set the cookie to expire in 1 day
         return response
+    if user_id not in chat_states:
+        # In case the cookie exists but the state was lost, reinitialize the state
+        chat_states[user_id] = {"step": "welcome"}
     return render_template("index.html")
 
 
@@ -31,12 +37,15 @@ def save_chat_state(user_id, state):
 
 
 def clear_chat_state(user_id):
-    chat_states.pop(user_id, None)
+    if user_id in chat_states:
+        # Clear the user's chat state
+        del chat_states[user_id]
 
 
 @app.route("/ask", methods=["POST"])
 def ask():
     user_id = request.cookies.get("user_id")
+    print(chat_states)
     if not user_id or user_id not in chat_states:
         return jsonify(
             {"answer": "There was an error with your session. Please refresh the page."}
@@ -67,12 +76,19 @@ def ask():
         return jsonify({"answer": "Thanks! Now, what's your email address?"})
 
     elif state["step"] == "ask_email":
-        state["email"] = question
-        state["step"] = "answer_questions"
-        save_chat_state(user_id, state)
-        return jsonify(
-            {"answer": "Thank you! You can now ask me any questions about the college."}
-        )
+        if not EMAIL_REGEX.match(question):
+            # If the email doesn't match the pattern, ask for it again
+            return jsonify({"answer": "Please enter a valid email address."})
+        else:
+            # If the email is valid, save it and proceed
+            state["email"] = question
+            state["step"] = "answer_questions"
+            save_chat_state(user_id, state)
+            return jsonify(
+                {
+                    "answer": "Thank you! You can now ask me any questions about the college."
+                }
+            )
 
     elif (
         "end" in question
@@ -80,17 +96,25 @@ def ask():
         or "quit" in question
         or "bye" in question
     ):
-        user_info = f"User Info: {state.get('first_name', '')} {state.get('last_name', '')} & {state.get('email', '')}"
-        creator_info = "Chatbox Creator: Jack Vo & volg@mail.uc.edu"
-        final_message = f"{user_info}. {creator_info}"
-        state["step"] = "prompt_clear_ui"
-        save_chat_state(user_id, state)
-        clear_chat_prompt = "Would you like to clear the chat history? (yes/no)"
-        return jsonify(
-            {"answer": final_message, "prompt_clear_chat": clear_chat_prompt}
-        )
-        # clear_chat_state(user_id)  # Clear the user's chat state
-        # return jsonify({"answer": final_message})
+        if (
+            state.get("step") != "prompt_clear_ui"
+        ):  # Check if it's the first 'end' message
+            # If it's the first 'end', prompt the user to clear the chat history
+            user_info = f"User Info: {state.get('first_name', '')} {state.get('last_name', '')} & {state.get('email', '')}"
+            creator_info = "Chatbox Creator: Jack Vo & volg@mail.uc.edu"
+            final_message = f"{user_info}. {creator_info}"
+            state["step"] = "prompt_clear_ui"
+            save_chat_state(user_id, state)
+            clear_chat_prompt = "Would you like to clear the chat history? (yes/no)"
+            return jsonify(
+                {"answer": final_message, "prompt_clear_chat": clear_chat_prompt}
+            )
+        else:
+            # If it's not the first 'end', clear the state regardless of user's response
+            clear_chat_state(user_id)
+            return jsonify(
+                {"answer": "Chat history has been cleared.", "clear_chat": True}
+            )
 
     elif state["step"] == "prompt_clear_ui":
         if "yes" in question:
